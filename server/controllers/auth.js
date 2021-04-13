@@ -3,47 +3,33 @@ import jwt from 'jsonwebtoken';
 
 import configs from '../config/index.js';
 import User from '../models/user.js';
+import sendMail from '../utils/sendMail.js';
 
 export const register = async function(req, res, next){
 
-    console.log(req.body.email);
-
     try{
 
-        const candidateEmail = await User.findOne({
-            where: {
-                email: req.body.email
-            }
+        const salt = bcrypt.genSaltSync(10);
+        const password = bcrypt.hashSync(req.body.password, salt);
+
+        const user = await User.create({
+            name: req.body.name,
+            email: req.body.email,
+            password
         });
 
-        if(candidateEmail){
-            //email is busy
-            res.status(409).json({
-                message: 'Email is busy'
-            });
-        }
-        else{
+        req._email = user.dataValues.email;
+        req._userId = user.dataValues.id;
+        next();
+        return;
 
-            const salt = bcrypt.genSaltSync(10);
-            const password = bcrypt.hashSync(req.body.password, salt);
-
-            const user = await User.create({
-                name: req.body.name,
-                email: req.body.email,
-                password
-            });
-
-            req._email = user.dataValues.email;
-            req._userId = user.dataValues.id;
-            next();
-            return;
-        }
     }
     catch(err){
         err.message = 'User were not created';
         next(err);
     }
 };
+
 export const registerGapi = async function(req, res, next){
 
     try{
@@ -124,6 +110,71 @@ export const login = async function(req, res, next){
     }
     catch(err){
         err.message = 'The user is not login.'
+        next(err);
+    }
+};
+
+export const getRegisterToken = async function(req, res){
+
+    try{
+
+        const candidateEmail = await User.findOne({
+            where: {
+                email: req.body.email
+            }
+        });
+
+        if(candidateEmail){
+            //email is busy
+            res.status(409).json({
+                message: 'Email is busy'
+            });
+            return;
+        }
+
+        const tokenReg = jwt.sign({
+            email: req.body.email
+        }, configs.secretKey, {expiresIn: '5m'});
+
+
+        await sendMail(req.body.email, tokenReg);
+
+        res.status(200).json({
+            massege: `Mail was sent to ${req.body.email}`
+        });
+
+    }
+    catch(err){
+        err.message('tokenReg wasnt sent');
+        next(err);
+    }
+};
+
+export const checkRegisterToken = async function(req, res){
+
+    try{
+
+        const token = req.query.token;
+
+        jwt.verify(token, configs.secretKey, async (err, decoded)=>{
+
+            if(err){
+                console.log(err);
+                res.status(401).json({
+                    message: 'Wrong token'
+                });
+                return;
+            }; 
+
+            res.status(200).json({
+                email: decoded.email
+            });
+
+        });
+
+    }
+    catch(err){
+        err.message('Wrong token');
         next(err);
     }
 };
