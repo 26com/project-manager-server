@@ -4,7 +4,7 @@ import cors from 'cors';
 
 import router from '../routes/index.js';
 import configs from '../config/index.js';
-import errorsCatcher from '../utils/middlewareErrorsCatcher.js';
+import errorHandler from '../utils/middlewareErrorsCatcher.js';
 
 const app = express();
 
@@ -22,7 +22,7 @@ app.use(cors());
 app.use(router);
 
 //catch an error
-app.use(errorsCatcher);
+app.use(errorHandler);
 
 export default app;
 

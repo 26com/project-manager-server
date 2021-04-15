@@ -1,27 +1,53 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import Sequelize from 'sequelize';
 
 import configs from '../config/index.js';
 import User from '../models/user.js';
 import sendMail from '../utils/sendMail.js';
 
 export const register = async function(req, res, next){
-
     try{
 
-        const salt = bcrypt.genSaltSync(10);
-        const password = bcrypt.hashSync(req.body.password, salt);
+        const candidate = await User.findOne({
+            where: {
+                [Sequelize.Op.and]: [
+                    {email: req.body.email},
+                    {confirm: true}
+                ]
+            }
+        });
 
+        if(candidate){
+            //email is busy
+            res.status(409).json({
+                message: 'Email is busy'
+            });
+            return;
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        const password = await bcrypt.hash(req.body.password, salt);
+
+        
         const user = await User.create({
             name: req.body.name,
             email: req.body.email,
-            password
+            password,
+            confirm: false
         });
 
-        req._email = user.dataValues.email;
-        req._userId = user.dataValues.id;
-        next();
-        return;
+        const tokenReg = jwt.sign({
+            email: req.body.email,
+            id: user.dataValues.id
+        }, configs.secretKey, {expiresIn: '5m'});
+
+
+        await sendMail(req.body.email, tokenReg);
+
+        res.status(200).json({
+            massege: `Mail was sent to ${req.body.email}`
+        });
 
     }
     catch(err){
@@ -36,28 +62,31 @@ export const registerGapi = async function(req, res, next){
 
         const candidate = await User.findOne({
             where: {
-                email: req.body.email
+                [Sequelize.Op.and]: [
+                    {email: req.body.email},
+                    {confirm: true}
+                ]
             }
         });
 
         req._email = req.body.email;
 
         if(!!candidate){
-            req._userId = candidate.dataValues.id;
+            req._id = candidate.dataValues.id;
             next();
             return;
         }
-        else{
 
-            const user = await User.create({
-                name: req.body.name,
-                email: req.body.email
-            });
+        const user = await User.create({
+            name: req.body.name,
+            email: req.body.email,
+            confirm: true
+        });
 
-            req._userId = user.dataValues.id;
-            next();
-            return;
-        }
+        req._id = user.dataValues.id;
+        next();
+        return;
+
     }
     catch(err){
         err.message = 'User were not created';
@@ -73,7 +102,10 @@ export const login = async function(req, res, next){
 
         const candidate = await User.findOne({
             where: {
-                email: req._email
+                [Sequelize.Op.and]: [
+                    {email: req.body.email},
+                    {confirm: true}
+                ]
             }
         });
 
@@ -82,7 +114,8 @@ export const login = async function(req, res, next){
             //if(!req._check_token){
                 const passwordResult = bcrypt.compareSync(req.body.password, candidate.dataValues.password);
                 if(passwordResult){
-                    req._userId = candidate.dataValues.id;
+                    req._id = candidate.dataValues.id;
+                    req._name = candidate.dataValues.name;
                     next();
                     return;
                 };
@@ -90,7 +123,8 @@ export const login = async function(req, res, next){
 
             if(req._check_token){
 
-                req._userId = candidate.dataValues.id;
+                req._id = candidate.dataValues.id;
+                req._name = candidate.dataValues.name;
                 next();
                 return;
 
@@ -104,7 +138,7 @@ export const login = async function(req, res, next){
             
         else{
             res.status(401).json({
-                message: 'user not found'
+                message: 'User not found'
             });
         }
     }
@@ -114,49 +148,13 @@ export const login = async function(req, res, next){
     }
 };
 
-export const getRegisterToken = async function(req, res){
-
-    try{
-
-        const candidateEmail = await User.findOne({
-            where: {
-                email: req.body.email
-            }
-        });
-
-        if(candidateEmail){
-            //email is busy
-            res.status(409).json({
-                message: 'Email is busy'
-            });
-            return;
-        }
-
-        const tokenReg = jwt.sign({
-            email: req.body.email
-        }, configs.secretKey, {expiresIn: '5m'});
-
-
-        await sendMail(req.body.email, tokenReg);
-
-        res.status(200).json({
-            massege: `Mail was sent to ${req.body.email}`
-        });
-
-    }
-    catch(err){
-        err.message('tokenReg wasnt sent');
-        next(err);
-    }
-};
-
-export const checkRegisterToken = async function(req, res){
+export const checkRegisterToken = async function(req, res, next){
 
     try{
 
         const token = req.query.token;
 
-        jwt.verify(token, configs.secretKey, async (err, decoded)=>{
+        jwt.verify(token, configs.secretKey, (err, decoded)=>{
 
             if(err){
                 console.log(err);
@@ -166,9 +164,13 @@ export const checkRegisterToken = async function(req, res){
                 return;
             }; 
 
-            res.status(200).json({
-                email: decoded.email
-            });
+            const id = decoded.id;
+
+            User.update({confirm: true}, {where: {id}});
+
+            req._id = id;
+            next();
+            return;
 
         });
 
@@ -181,19 +183,18 @@ export const checkRegisterToken = async function(req, res){
 
 export const getToken = async function(req, res){
 
-    console.log('get token');
-
     try{
 
         const token = jwt.sign({
-            id: req._userId,
-            email: req._email
+            email: req._email,
+            id: req._id
         }, configs.secretKey, {expiresIn: '300h'});
 
-        await User.update({token}, {where: {id: req._userId}});
+        await User.update({token}, {where: {id: req._id}});
 
         res.status(200).json({
             token,
+            userName: req._name,
             massege: 'log in'
         });
 
