@@ -1,4 +1,6 @@
-import app from './server/config/express.js';
+console.log('app');
+
+const {app} = require('./server/config/express');
 
 app.listen(4000, () => {
     console.log('SERVER WAS STARTED');

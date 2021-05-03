@@ -1,23 +1,36 @@
-import { Sequelize } from 'sequelize';
+const { Sequelize, DataTypes } = require('sequelize');
 
-import configs from '../config/index.js';
-import User from './user.js';
+const { configs } = require('../config/index');
 
 const { db } = configs;
 
-export const sequelize = new Sequelize(
-    db.name,
-    db.user,
-    db.password,
-    {
-        dialect: 'postgres',
-        define: {timestamps: false} 
-    }
+const sequelize = new Sequelize(
+  db.name,
+  db.user,
+  db.password,
+  {
+    dialect: 'postgres',
+    define: { timestamps: false },
+  },
 );
 
-sequelize.sync()
-.then(() => {
-    console.log(':::DB WAS CONNECTED:::');
-})
-.catch(err => console.log(err));
+module.exports = {
+  sequelize,
+  Sequelize,
+  DataTypes,
+};
 
+const { User } = require('./user');
+const { Workspace } = require('./workspace');
+
+console.log(User);
+console.log(Workspace);
+
+User.hasMany(Workspace, { onDelete: 'cascade' });
+Workspace.belongsTo(User);
+
+sequelize.sync()
+  .then(() => {
+    console.log(':::DB WAS CONNECTED:::');
+  })
+  .catch((err) => console.log(err));

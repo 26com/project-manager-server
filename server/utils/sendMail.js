@@ -1,10 +1,10 @@
-import nodemailer from 'nodemailer';
+const nodemailer = require('nodemailer');
 
-import dotenv from 'dotenv';
+const dotenv = require('dotenv');
 
 dotenv.config();
 
-export default async function(email, token){
+async function sendMail(email, token){
 
     let transporter = nodemailer.createTransport({
         service: process.env.NODE_MAILER_SERVICE,
@@ -24,4 +24,8 @@ export default async function(email, token){
     });
 
     console.log(result);
+};
+
+module.exports = {
+    sendMail
 };

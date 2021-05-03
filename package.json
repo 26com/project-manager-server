@@ -20,5 +20,10 @@
     "pg": "^8.5.1",
     "sequelize": "^6.6.2"
   },
-  "type": "module"
+  "devDependencies": {
+    "eslint": "^7.24.0",
+    "eslint-config-airbnb-base": "^14.2.1",
+    "eslint-config-google": "^0.14.0",
+    "eslint-plugin-import": "^2.22.1"
+  }
 }

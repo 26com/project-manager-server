@@ -1,9 +1,13 @@
-import express from 'express';
+const express = require('express');
 
-import unprotected from './unprotected.js';
+const unprotected = require('./unprotected');
+const workspace = require('./workspace');
 
 const router = express.Router();
 
-router.use('/unprotected', unprotected);
+router.use('/unprotected', unprotected.router);
+router.use('/workspace', workspace.router);
 
-export default router;
+module.exports = {
+  router,
+};

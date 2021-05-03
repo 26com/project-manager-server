@@ -1,6 +1,6 @@
-import { Sequelize } from 'sequelize';
+console.log('user model');
 
-import { sequelize } from './index.js';
+const { sequelize, Sequelize } = require('./index');
 
 const User = sequelize.define('user', {
     id: {
@@ -29,4 +29,6 @@ const User = sequelize.define('user', {
     }
 });
 
-export default User;
+module.exports = {
+    User
+};

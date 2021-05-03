@@ -1,12 +1,69 @@
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import Sequelize from 'sequelize';
+console.log('auth contr');
 
-import configs from '../config/index.js';
-import User from '../models/user.js';
-import sendMail from '../utils/sendMail.js';
+const bcrypt = require ('bcryptjs');
+const jwt = require ('jsonwebtoken');
+const {Sequelize} = require ('sequelize');
 
-export const register = async function(req, res, next){
+require('../models');
+const {configs} = require ('../config');
+const {User} = require ('../models/user');
+const {sendMail} = require ('../utils/sendMail');
+
+
+const signIn = async function(req, res, next){
+
+    try{
+
+        const token = req.headers.authorization;
+
+        if(!token){
+            res.status(401).json({
+                message: 'Please log in.'
+            });
+            return;
+        }
+        
+        const decoded = jwt.verify(token, configs.secretKey, (err, decoded)=>{
+            if(err){
+                console.log(err);
+                res.status(401).json({
+                    message: 'Wrong token'
+                });
+                return;
+            };
+            return decoded;
+        });
+
+        console.log(decoded.id);
+
+        const currentUser = await User.findOne({
+            where: {
+                id: decoded.id
+            }
+        });
+
+        const checkToken = token === currentUser.dataValues.token;
+
+        if(!checkToken){
+            console.log(err);
+            res.status(401).json({
+                message: 'Wrong token. Please log in.'
+            });
+            return;
+        };
+
+        req._currentUser = currentUser;
+        next();
+        return;
+
+    }catch(err){
+
+        err.message = 'Login error.';
+        next(err);
+
+    }
+};
+const register = async function(req, res, next){
     try{
 
         const candidate = await User.findOne({
@@ -56,7 +113,7 @@ export const register = async function(req, res, next){
     }
 };
 
-export const registerGapi = async function(req, res, next){
+const registerGapi = async function(req, res, next){
 
     try{
 
@@ -84,6 +141,7 @@ export const registerGapi = async function(req, res, next){
         });
 
         req._id = user.dataValues.id;
+        console.log(user.dataValues.id);
         next();
         return;
 
@@ -94,7 +152,7 @@ export const registerGapi = async function(req, res, next){
     }
 };
 
-export const login = async function(req, res, next){
+const login = async function(req, res, next){
 
     req._email = req.body.email ? req.body.email : req._email;
 
@@ -111,15 +169,13 @@ export const login = async function(req, res, next){
 
         if(candidate){
 
-            //if(!req._check_token){
-                const passwordResult = bcrypt.compareSync(req.body.password, candidate.dataValues.password);
-                if(passwordResult){
-                    req._id = candidate.dataValues.id;
-                    req._name = candidate.dataValues.name;
-                    next();
-                    return;
-                };
-            //};
+            const passwordResult = bcrypt.compareSync(req.body.password, candidate.dataValues.password);
+            if(passwordResult){
+                req._id = candidate.dataValues.id;
+                req._name = candidate.dataValues.name;
+                next();
+                return;
+            };
 
             if(req._check_token){
 
@@ -148,13 +204,13 @@ export const login = async function(req, res, next){
     }
 };
 
-export const checkRegisterToken = async function(req, res, next){
+const checkRegisterToken = async function(req, res, next){
 
     try{
 
         const token = req.query.token;
 
-        jwt.verify(token, configs.secretKey, (err, decoded)=>{
+        const decoded = jwt.verify(token, configs.secretKey, (err, decoded)=>{
 
             if(err){
                 console.log(err);
@@ -162,17 +218,23 @@ export const checkRegisterToken = async function(req, res, next){
                     message: 'Wrong token'
                 });
                 return;
-            }; 
+            };
 
-            const id = decoded.id;
-
-            User.update({confirm: true}, {where: {id}});
-
-            req._id = id;
-            next();
-            return;
+            return decoded;
 
         });
+
+        if(!decoded){
+            return;
+        };
+
+        const id = decoded.id;
+
+        User.update({confirm: true}, {where: {id}});
+
+        req._id = id;
+        next();
+        return;
 
     }
     catch(err){
@@ -181,7 +243,7 @@ export const checkRegisterToken = async function(req, res, next){
     }
 };
 
-export const getToken = async function(req, res){
+const getToken = async function(req, res, next){
 
     try{
 
@@ -189,6 +251,8 @@ export const getToken = async function(req, res){
             email: req._email,
             id: req._id
         }, configs.secretKey, {expiresIn: '300h'});
+
+        console.log(token);
 
         await User.update({token}, {where: {id: req._id}});
 
@@ -201,6 +265,16 @@ export const getToken = async function(req, res){
     }catch(err){
 
         err.message = 'Token not received.'
+        next(err);
 
     }
+};
+
+module.exports = {
+    signIn,
+    register,
+    registerGapi,
+    login,
+    checkRegisterToken,
+    getToken
 };

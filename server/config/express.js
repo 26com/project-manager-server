@@ -1,10 +1,12 @@
-import express from 'express';
-import cookieParser from 'cookie-parser';
-import cors from 'cors';
+console.log('express config');
 
-import router from '../routes/index.js';
-import configs from '../config/index.js';
-import errorHandler from '../utils/middlewareErrorsCatcher.js';
+const express = require('express');
+const cookieParser = require('cookie-parser');
+const cors = require('cors');
+
+const {router} = require('../routes/index');
+const {configs} = require('../config/index');
+const {errorHandler} = require('../utils/errorHandler');
 
 const app = express();
 
@@ -24,7 +26,9 @@ app.use(router);
 //catch an error
 app.use(errorHandler);
 
-export default app;
+module.exports = {
+    app
+};
 
 
 

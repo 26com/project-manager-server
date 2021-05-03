@@ -1,4 +1,4 @@
-function middlewareErrorsCatcher(err, req, res, next){
+function errorHandler(err, req, res, next){
     res.status(res.status || 500);
     console.log(':::Error::: ', err.message);
     res.json({
@@ -6,4 +6,6 @@ function middlewareErrorsCatcher(err, req, res, next){
     });
 };
 
-export default middlewareErrorsCatcher;
+module.exports = {
+    errorHandler
+};
