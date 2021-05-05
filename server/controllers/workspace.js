@@ -1,6 +1,5 @@
-console.log('workspace contr');
-
 require('../models');
+const { Workspace } = require('../models/workspace');
 
 const createNew = async function (req, res, next) {
   try {
@@ -18,6 +17,25 @@ const createNew = async function (req, res, next) {
     });
   } catch (err) {
     err.message = 'Workspace were not created';
+    next(err);
+  }
+};
+
+const deleteOne = async function (req, res, next) {
+  console.log(req.query);
+
+  try {
+    await Workspace.destroy({
+      where: {
+        id: req.query.id,
+      },
+    });
+
+    res.status(200).json({
+      massege: `Workspace ${req.body.name} was deleted`,
+    });
+  } catch (err) {
+    err.message = 'Workspace were not deleted';
     next(err);
   }
 };
@@ -44,4 +62,5 @@ const getByUser = async function (req, res, next) {
 module.exports = {
   createNew,
   getByUser,
+  deleteOne,
 };
