@@ -1,4 +1,4 @@
-const { Sequelize, DataTypes } = require('sequelize');
+const { Sequelize } = require('sequelize');
 
 const { configs } = require('../config/index');
 
@@ -17,17 +17,20 @@ const sequelize = new Sequelize(
 module.exports = {
   sequelize,
   Sequelize,
-  DataTypes,
 };
 
 const { User } = require('./user');
 const { Workspace } = require('./workspace');
-
-console.log(User);
-console.log(Workspace);
+const { Project } = require('./project');
 
 User.hasMany(Workspace, { onDelete: 'cascade' });
 Workspace.belongsTo(User);
+
+Workspace.hasMany(Project, { onDelete: 'cascade' });
+Project.belongsTo(Workspace);
+
+User.belongsToMany(Project, { through: 'UserProjects' });
+Project.belongsToMany(User, { through: 'UserProjects' });
 
 sequelize.sync()
   .then(() => {
